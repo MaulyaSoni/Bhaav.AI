@@ -20,9 +20,12 @@ const emotionColors: Record<string, string> = {
 export function EmotionChart({ distribution }: EmotionChartProps) {
   const emotionOrder = ["Angry", "Disgust", "Fear", "Happy", "Sad", "Surprise", "Neutral"]
 
+  // Ensure distribution exists and default missing keys to 0
+  const safeDistribution: Partial<EmotionDistribution> = distribution || ({} as Partial<EmotionDistribution>)
+
   const data = emotionOrder.map((emotion) => ({
     emotion,
-    value: distribution[emotion as keyof EmotionDistribution] || 0,
+    value: (safeDistribution[emotion as keyof EmotionDistribution] as number) ?? 0,
     fill: emotionColors[emotion] || "hsl(0, 0%, 50%)",
   }))
 
