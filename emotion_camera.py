@@ -124,7 +124,7 @@ while True:
             preds = model.predict(gray_face, verbose=0)
             confidence = float(np.max(preds))
             label_index = int(np.argmax(preds))
-
+    
             if confidence >= CONFIDENCE_THRESHOLD:
                 emotion_queue.append(label_index)
                 emotion = emotion_labels[
