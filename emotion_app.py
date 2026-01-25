@@ -39,35 +39,24 @@ if 'emotion' not in st.session_state:
 if 'confidence' not in st.session_state:
     st.session_state.confidence = 0
 if 'dark' not in st.session_state:
-    st.session_state.dark = True  # Default to dark mode
+    st.session_state.dark = False  # Enforce Light Mode
 if 'model_ready' not in st.session_state:
     st.session_state.model_ready = False
 
 # =========================================================
-# THEME COLORS
+# THEME COLORS (Clean Light Mode)
 # =========================================================
-if st.session_state.dark:
-    bg = "#000000"
-    sidebar_bg = "#0a0a0a"
-    primary_gradient = "linear-gradient(135deg, #FF00CC 0%, #333399 100%)"
-    text_color = "#FFFFFF"
-    sub_text = "#e0e0e0"
-    card_bg = "#121212"
-    border_color = "#FF00CC"
-    accent = "#FF00CC"
-    btn_gradient = "linear-gradient(135deg, #FF00CC 0%, #6633CC 100%)"
-    shadow = "0 8px 32px rgba(255, 0, 204, 0.3)"
-else:
-    bg = "#FAFAFA"
-    sidebar_bg = "#FFFFFF"
-    primary_gradient = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-    text_color = "#1a1a2e"
-    sub_text = "#4a4a6a"
-    card_bg = "#FFFFFF"
-    border_color = "#667eea"
-    accent = "#667eea"
-    btn_gradient = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-    shadow = "0 8px 24px rgba(102, 126, 234, 0.2)"
+# We remove the dark mode check and set fixed light theme variables
+bg = "#FAFAFA"
+sidebar_bg = "#FFFFFF"
+primary_gradient = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+text_color = "#1a1a2e"
+sub_text = "#4a4a6a"
+card_bg = "#FFFFFF"
+border_color = "#667eea"
+accent = "#667eea"
+btn_gradient = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+shadow = "0 8px 24px rgba(102, 126, 234, 0.2)"
 
 # =========================================================
 # PREMIUM CSS STYLES
@@ -81,10 +70,6 @@ st.markdown(f"""
         font-family: 'Inter', sans-serif;
     }}
     
-    /* ========================================== */
-    /* 🔴 FIX 1: White Block Removal (Dark Mode) */
-    /* ========================================== */
-    
     /* Main Background */
     .main {{
         background-color: {bg};
@@ -92,23 +77,6 @@ st.markdown(f"""
     
     .stApp {{
         background: {bg};
-    }}
-    
-    /* Fix white blocks in dark mode - CRITICAL */
-    .block-container {{
-        background-color: transparent !important;
-    }}
-    
-    div[data-testid="stVerticalBlock"] {{
-        background: transparent !important;
-    }}
-    
-    div[data-testid="stAppViewContainer"] {{
-        background-color: {bg} !important;
-    }}
-    
-    div[data-testid="stHorizontalBlock"] {{
-        background: transparent !important;
     }}
     
     /* Sidebar Styling */
@@ -120,21 +88,6 @@ st.markdown(f"""
     
     section[data-testid="stSidebar"] > div {{
         padding: 1rem;
-    }}
-    
-    /* ========================================== */
-    /* 🎭 FIX 2: Emoji & Icon Rendering          */
-    /* ========================================== */
-    
-    /* Emoji & icon rendering fix */
-    .emoji, .icon {{
-        filter: none !important;
-        opacity: 1 !important;
-        text-shadow: none !important;
-    }}
-    
-    .emotion-card div:first-child {{
-        filter: drop-shadow(0 0 8px rgba(255,0,204,0.6));
     }}
     
     /* Headers */
@@ -248,57 +201,6 @@ st.markdown(f"""
         transform: scale(0.98) !important;
     }}
     
-    /* ========================================== */
-    /* 🎚️ FIX 3: Premium Volume-Style Slider     */
-    /* ========================================== */
-    
-    /* Premium Confidence Slider (Dark Mode) */
-    .stSlider {{
-        padding: 0.5rem 0.2rem;
-    }}
-    
-    .stSlider > div {{
-        height: 1.1rem;
-        border-radius: 1rem;
-        background: rgba(255,255,255,0.1);
-        border: 1px solid {border_color};
-    }}
-    
-    .stSlider > div > div {{
-        border-radius: 1rem !important;
-        background: {primary_gradient} !important;
-    }}
-    
-    .stSlider > div > div > div > div {{
-        width: 1.2rem !important;
-        height: 1.2rem !important;
-        border-radius: 50% !important;
-        background: #ffffff !important;
-        border: 3px solid {accent} !important;
-        box-shadow: 0 0 12px rgba(255,0,204,0.8);
-        transform: translateY(-2px);
-    }}
-    
-    /* ========================================== */
-    /* 🌞 FIX 4: Light Mode Slider Enhancement   */
-    /* ========================================== */
-    
-    /* Light mode slider enhancement */
-    {"" if st.session_state.dark else """
-    .stSlider > div {{
-        background: #eaeaf5 !important;
-    }}
-    
-    .stSlider > div > div {{
-        background: linear-gradient(90deg, #667eea, #764ba2) !important;
-    }}
-    
-    .stSlider > div > div > div > div {{
-        border-color: #667eea !important;
-        box-shadow: 0 0 8px rgba(102,126,234,0.6);
-    }}
-    """}
-    
     /* Checkbox */
     .stCheckbox > label {{
         color: {text_color} !important;
@@ -400,18 +302,61 @@ st.markdown(f"""
         transform: translateX(5px);
         border-color: {accent};
     }}
-    
-    /* ========================================== */
-    /* 🧠 BONUS: Slider Container Card           */
-    /* ========================================== */
-    
-    .slider-container {{
-        background: {card_bg};
-        border: 1px solid {border_color};
-        border-radius: 1rem;
-        padding: 1rem;
-        box-shadow: {shadow};
-        margin-bottom: 1rem;
+
+    /* ===== NEO-GLASS SIDEBAR FIX ===== */
+    section[data-testid="stSidebar"] {{
+        background: linear-gradient(
+            135deg,
+            rgba(255,255,255,0.08),
+            rgba(255,255,255,0.02)
+        ) !important;
+        backdrop-filter: blur(18px) saturate(160%) !important;
+        -webkit-backdrop-filter: blur(18px) saturate(160%);
+        border-right: 1px solid rgba(255,255,255,0.15) !important;
+    }}
+
+    /* Prevent white bleed */
+    section[data-testid="stSidebar"] > div {{
+        background: transparent !important;
+    }}
+
+    /* ===== DARK MODE WHITE BLOCK FIX ===== */
+    .stApp,
+    .main,
+    .block-container,
+    div[data-testid="stAppViewContainer"],
+    div[data-testid="stVerticalBlock"] {{
+        background-color: transparent !important;
+    }}
+
+    /* ===== ICON / EMOJI RENDER FIX ===== */
+    .emotion-card,
+    .section-header {{
+        filter: none !important;
+        opacity: 1 !important;
+    }}
+
+    .emotion-card div:first-child {{
+        text-shadow: 0 0 12px rgba(255,0,204,0.6);
+    }}
+
+    /* ===== MOBILE RESPONSIVE ===== */
+    @media (max-width: 768px) {{
+        .main-header {{
+            font-size: 2.2rem !important;
+        }}
+
+        .emotion-card {{
+            padding: 1.2rem !important;
+        }}
+
+        .section-header {{
+            font-size: 1rem !important;
+        }}
+
+        .stButton > button {{
+            width: 100% !important;
+        }}
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -468,7 +413,7 @@ else:
 # =========================================================
 # MAIN UI
 # =========================================================
-st.markdown('<div class="main-header"><span class="emoji">🎭</span> BHAAV AI</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-header">🎭 BHAAV AI</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-header">Real-Time Facial Emotion Recognition powered by Deep Learning</div>', unsafe_allow_html=True)
 
 # Model Status Badge at Top
@@ -484,25 +429,16 @@ st.markdown(f"""
 # SIDEBAR
 # =========================================================
 with st.sidebar:
-    # Theme Toggle
-    theme_icon = "🌙" if st.session_state.dark else "☀️"
-    theme_label = "LIGHT MODE" if st.session_state.dark else "DARK MODE"
-    if st.button(f"{theme_icon} {theme_label}", key="theme_btn"):
-        st.session_state.dark = not st.session_state.dark
-        st.rerun()
+    # Sidebar Header (No Theme Toggle)
+    st.markdown('<div class="section-header">⚙️ SETTINGS</div>', unsafe_allow_html=True)
     
-    st.markdown("---")
-    st.markdown("""<div class="section-header">⚙️ SETTINGS</div>""", unsafe_allow_html=True)
-    
-    # Confidence Slider with Premium Container
-    st.markdown(f"""<div class="slider-container">""", unsafe_allow_html=True)
-    conf = st.slider("Confidence Threshold", 0.0, 1.0, 0.35, 0.05, key="confidence_slider")
-    st.markdown("""</div>""", unsafe_allow_html=True)
+    # Confidence Slider with Description
+    conf = st.slider("Confidence Threshold", 0.0, 1.0, 0.35, 0.05)
     
     # Confidence Meter Brief - Enhanced Version
     st.markdown(f"""
     <div class="confidence-info">
-        <h4>📊 About Confidence Meter</h4>
+        <h4>📊 About Confidence Threshold</h4>
         <p>The confidence threshold filters out uncertain predictions. 
         Higher values (0.7+) show only high-confidence detections, 
         while lower values (0.3-0.5) allow more predictions but may include less accurate results. 
@@ -573,7 +509,7 @@ with col2:
     if not st.session_state.emotion:
         emo_display.markdown(f"""
         <div class="emotion-card">
-            <div class="emoji" style="font-size: 3.5rem; opacity: 0.5;">🎭</div>
+            <div style="font-size: 3.5rem; opacity: 0.5;">🎭</div>
             <h2 style="color: {sub_text}; font-weight: 700;">Waiting...</h2>
             <p style="color: {sub_text}; font-size: 0.9rem;">Start camera to detect emotions</p>
         </div>
@@ -589,20 +525,13 @@ with col2:
     conf_color = "#00FF00" if conf_percent >= 70 else ("#FFD700" if conf_percent >= 40 else "#FF4444")
     
     conf_meter_display.markdown(f"""
-    <div style="background: {card_bg}; border: 2px solid {border_color}; border-radius: 1rem; padding: 1.5rem; margin-bottom: 1rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-            <span style="color: {text_color}; font-weight: 700; font-size: 1rem;">Current Confidence</span>
-            <span style="color: {conf_color}; font-weight: 900; font-size: 1.5rem;">{conf_percent}%</span>
+    <div style="background: {card_bg}; border: 1px solid rgba(128,128,128,0.2); border-radius: 0.75rem; padding: 1rem; margin-bottom: 1rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <span style="color: {text_color}; font-weight: 600; font-size: 0.9rem;">Confidence</span>
+            <span style="color: {conf_color}; font-weight: 700; font-size: 1.1rem;">{conf_percent}%</span>
         </div>
-        <div style="background: #333; border-radius: 10px; height: 12px; overflow: hidden;">
-            <div style="background: linear-gradient(90deg, {accent}, {conf_color}); height: 100%; width: {conf_percent}%; border-radius: 10px; transition: width 0.3s ease;"></div>
-        </div>
-        <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(255,0,204,0.1); border-radius: 0.5rem; border-left: 3px solid {accent};">
-            <p style="color: {sub_text}; font-size: 0.8rem; margin: 0; line-height: 1.4;">
-                <strong style="color: {accent};">What is this?</strong><br>
-                The confidence meter shows how certain the AI is about its emotion prediction. 
-                <strong>70%+</strong> = High accuracy, <strong>40-70%</strong> = Moderate, <strong>&lt;40%</strong> = Low certainty.
-            </p>
+        <div style="background: rgba(128,128,128,0.1); border-radius: 10px; height: 10px; overflow: hidden;">
+            <div style="background: {conf_color}; height: 100%; width: {conf_percent}%; transition: width 0.3s ease;"></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -628,7 +557,9 @@ with c3:
 # VIDEO PROCESSING
 # =========================================================
 if st.session_state.running:
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
     cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
     
     fc = 0
@@ -707,9 +638,9 @@ if st.session_state.running:
             # Update Emotion Card
             emo_display.markdown(f"""
             <div class="emotion-card">
-                <div class="emoji" style="font-size: 4rem;">{t['emoji']}</div>
+                <div style="font-size: 4rem;">{t['emoji']}</div>
                 <h1 style="background: {primary_gradient}; -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 900; font-size: 1.8rem; margin: 0.5rem 0;">{e.upper()}</h1>
-                <div class="icon" style="font-size: 1.8rem; margin: 0.5rem 0;">{t['icon']}</div>
+                <div style="font-size: 1.8rem; margin: 0.5rem 0;">{t['icon']}</div>
                 <p style="color: {sub_text}; font-size: 0.95rem; font-weight: 600;">{t['msg']}</p>
                 <div style="margin-top: 1rem; padding: 0.5rem 1rem; background: {btn_gradient}; border-radius: 0.75rem; display: inline-block;">
                     <span style="color: #FFF; font-weight: 700; font-size: 0.9rem;">Confidence: {st.session_state.confidence:.0%}</span>
@@ -723,21 +654,13 @@ if st.session_state.running:
             conf_status = "🟢 HIGH" if live_conf_percent >= 70 else ("🟡 MODERATE" if live_conf_percent >= 40 else "🔴 LOW")
             
             conf_meter_display.markdown(f"""
-            <div style="background: {card_bg}; border: 2px solid {border_color}; border-radius: 1rem; padding: 1.5rem; margin-bottom: 1rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                    <span style="color: {text_color}; font-weight: 700; font-size: 1rem;">Current Confidence</span>
-                    <span style="color: {live_conf_color}; font-weight: 900; font-size: 1.5rem;">{live_conf_percent}%</span>
+            <div style="background: {card_bg}; border: 1px solid rgba(128,128,128,0.2); border-radius: 0.75rem; padding: 1rem; margin-bottom: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <span style="color: {text_color}; font-weight: 600; font-size: 0.9rem;">Confidence</span>
+                    <span style="color: {live_conf_color}; font-weight: 700; font-size: 1.1rem;">{live_conf_percent}%</span>
                 </div>
-                <div style="background: #333; border-radius: 10px; height: 14px; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);">
-                    <div style="background: linear-gradient(90deg, {accent}, {live_conf_color}); height: 100%; width: {live_conf_percent}%; border-radius: 10px; transition: width 0.3s ease; box-shadow: 0 0 10px {live_conf_color};"></div>
-                </div>
-                <div style="text-align: center; margin-top: 0.75rem;">
-                    <span style="color: {live_conf_color}; font-weight: 700; font-size: 0.9rem;">{conf_status}</span>
-                </div>
-                <div style="margin-top: 0.75rem; padding: 0.5rem; background: rgba(255,0,204,0.1); border-radius: 0.5rem; border-left: 3px solid {accent};">
-                    <p style="color: {sub_text}; font-size: 0.75rem; margin: 0; line-height: 1.3;">
-                        <strong style="color: {accent};">📊 Live Status:</strong> AI is {live_conf_percent}% confident about detecting <strong>{e}</strong>
-                    </p>
+                <div style="background: rgba(128,128,128,0.1); border-radius: 10px; height: 10px; overflow: hidden;">
+                    <div style="background: {live_conf_color}; height: 100%; width: {live_conf_percent}%; transition: width 0.3s ease;"></div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
