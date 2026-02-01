@@ -1,7 +1,6 @@
 # =========================================================
 # BHAAV AI - STREAMLIT (PRODUCTION)
-# Zero-latency real-time detection with proper streaming
-# Premium UI with Enhanced Design
+# Ultra-optimized with async processing and zero latency
 # =========================================================
 
 import os
@@ -16,39 +15,45 @@ import cv2
 import numpy as np
 import tensorflow as tf
 from collections import deque, Counter
+import threading
+from queue import Queue
 import time
+from textwrap import dedent
+from PIL import Image
 
 # =========================================================
 # PAGE CONFIG
 # =========================================================
 st.set_page_config(
     page_title="BHAAV AI",
-    page_icon="🎭",
-    layout="wide"
+    page_icon="❤️",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 # =========================================================
 # SESSION STATE
 # =========================================================
-if 'history' not in st.session_state:
-    st.session_state.history = []
-if 'running' not in st.session_state:
-    st.session_state.running = False
-if 'emotion' not in st.session_state:
-    st.session_state.emotion = None
-if 'confidence' not in st.session_state:
-    st.session_state.confidence = 0
-if 'dark' not in st.session_state:
-    st.session_state.dark = False
-if 'model_ready' not in st.session_state:
-    st.session_state.model_ready = False
+defaults = {
+    'history': [],
+    'running': False,
+    'emotion': None,
+    'confidence': 0,
+    'model_ready': False,
+    'frame_queue': Queue(maxsize=2),
+    'result_queue': Queue(maxsize=2),
+    'fps': 0
+}
+
+for key, val in defaults.items():
+    if key not in st.session_state:
+        st.session_state[key] = val
 
 # =========================================================
 # PREMIUM CSS STYLES
 # =========================================================
 st.markdown("""
 <style>
-    /* Import Google Fonts */
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Poppins:wght@400;600;700;900&display=swap');
     
     * {
@@ -59,7 +64,7 @@ st.markdown("""
         font-family: 'Poppins', sans-serif !important;
     }
     
-    /* Main Background */
+    /* Fix white blocks - Make everything transparent on gradient */
     .main {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
@@ -68,15 +73,37 @@ st.markdown("""
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
     
-    /* Banner Container */
-    .banner-container {
-        width: 100%;
-        margin-bottom: 2rem;
-        border-radius: 2rem;
-        overflow: hidden;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        border: 3px solid rgba(255,255,255,0.2);
+    /* Remove all white backgrounds */
+    .block-container {
+        background: transparent !important;
     }
+    
+    div[data-testid="stAppViewContainer"] {
+        background: transparent !important;
+    }
+    
+    div[data-testid="stHeader"] {
+        background: transparent !important;
+    }
+    
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+    }
+    
+    /* Navbar fix */
+    .stApp > header {
+        background: transparent !important;
+    }
+    
+    /* Banner Container */
+    # .banner-container {
+    #     width: 100%;
+    #     margin-bottom: 2rem;
+    #     border-radius: 2rem;
+    #     overflow: hidden;
+    #     box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    #     border: 3px solid rgba(255,255,255,0.2);
+    # }
     
     /* Headers */
     .main-header {
@@ -134,7 +161,7 @@ st.markdown("""
         50% { box-shadow: 0 12px 35px rgba(0,255,136,0.6); }
     }
     
-    /* Sidebar Styling */
+    /* Sidebar */
     section[data-testid="stSidebar"] {
         background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(240,240,255,0.95) 100%);
         border-right: 3px solid rgba(102,126,234,0.5);
@@ -146,7 +173,7 @@ st.markdown("""
         padding: 1.5rem;
     }
     
-    /* 3D Confidence Slider Container */
+    /* 3D Confidence Container */
     .confidence-container {
         background: linear-gradient(145deg, #ffffff, #f0f0ff);
         border: 3px solid #667eea;
@@ -168,10 +195,7 @@ st.markdown("""
         left: -50%;
         width: 200%;
         height: 200%;
-        background: linear-gradient(45deg, 
-            transparent, 
-            rgba(255,255,255,0.1), 
-            transparent);
+        background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
         animation: shimmer 3s infinite;
     }
     
@@ -217,6 +241,19 @@ st.markdown("""
         border-radius: 0.75rem;
     }
     
+    .confidence-recommendation {
+        margin-top: 1rem;
+        padding: 0.75rem;
+        background: linear-gradient(135deg, rgba(0,255,136,0.2), rgba(0,204,106,0.2));
+        border-radius: 0.75rem;
+        text-align: center;
+    }
+    
+    .confidence-recommendation span {
+        color: #00CC6A;
+        font-weight: 800;
+    }
+    
     .legend-item {
         display: flex;
         align-items: center;
@@ -251,21 +288,53 @@ st.markdown("""
         box-shadow: 0 25px 70px rgba(0,0,0,0.3);
     }
     
-    /* Buttons */
-    .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-        color: #FFFFFF !important;
-        border: 2px solid rgba(255,255,255,0.3) !important;
-        border-radius: 1.5rem !important;
-        padding: 1rem 2.5rem !important;
-        font-weight: 800 !important;
-        font-size: 1.1rem !important;
-        font-family: 'Poppins', sans-serif !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 10px 30px rgba(102,126,234,0.4) !important;
-        text-transform: uppercase !important;
-        letter-spacing: 1px !important;
-    }
+   /* Buttons */
+.stButton > button {
+    background: linear-gradient(
+        135deg,
+        #ff0844 0%,   /* hot red */
+        #b721ff 50%,  /* vivid purple */
+        #ff5fcb 100%  /* neon pink */
+    ) !important;
+
+    color: #ffffff !important;
+    cursor: pointer;
+    
+    border: 2px solid rgba(255,255,255,0.5) !important;
+    border-radius: 1.5rem !important;
+    padding: 1rem 2.5rem !important;
+    font-weight: 1000 !important;
+    font-size: 1.1rem !important;
+    font-family: 'Poppins', sans-serif !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+    opacity:0.7;
+
+    box-shadow:
+        0 12px 35px rgba(255, 8, 68, 0.45),
+        0 0 20px rgba(255, 95, 203, 0.6) !important;
+
+    transition: all 0.25s ease !important;
+}
+
+/* Hover effect */
+.stButton > button:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow:
+        0 18px 45px rgba(183, 33, 255, 0.6),
+        0 0 30px rgba(255, 95, 203, 0.9) !important;
+    opacity:1;
+    font-size: 1.3rem !important;
+}
+
+/* Active / Click */
+.stButton > button:active {
+    transform: scale(0.97);
+    box-shadow:
+        0 8px 20px rgba(255, 8, 68, 0.4) !important;
+    opacity:1;
+}
+
     
     .stButton > button:hover {
         transform: scale(1.05) translateY(-2px) !important;
@@ -314,18 +383,13 @@ st.markdown("""
         font-family: 'Poppins', sans-serif;
     }
     
-    /* Divider */
     hr {
         border: none;
         height: 2px;
-        background: linear-gradient(90deg, 
-            transparent, 
-            rgba(255,255,255,0.5), 
-            transparent);
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
         margin: 1.5rem 0;
     }
     
-    /* Footer */
     .footer {
         text-align: center;
         color: rgba(255,255,255,0.9);
@@ -335,19 +399,6 @@ st.markdown("""
         text-shadow: 0 2px 10px rgba(0,0,0,0.3);
     }
     
-    /* Confidence Meter Visual */
-    .conf-meter-container {
-        background: linear-gradient(145deg, #ffffff, #f0f0ff);
-        border: 2px solid rgba(102,126,234,0.4);
-        border-radius: 1.5rem;
-        padding: 1.5rem;
-        margin: 1rem 0;
-        box-shadow: 
-            0 10px 25px rgba(102,126,234,0.2),
-            inset 0 2px 5px rgba(255,255,255,0.8);
-    }
-    
-    /* Mobile Responsive */
     @media (max-width: 768px) {
         .main-header {
             font-size: 2.5rem !important;
@@ -360,7 +411,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# THEMES DATA
+# THEMES
 # =========================================================
 THEMES = {
     "Happy": {"emoji": "😊", "msg": "RADIATING POSITIVE VIBES!", "icon": "⚡"},
@@ -378,6 +429,7 @@ THEMES = {
 MODEL = r"D:\Emotion-Detection\saved-models\emotion_model-opt1.h5"
 CASCADE = r"D:\Emotion-Detection\saved-models\haarcascade_frontalface_default.xml"
 LABELS = ["Angry", "Disgust", "Fear", "Happy", "Sad", "Surprise", "Neutral"]
+BANNER_IMAGE = r"D:\Emotion-Detection\images\image.png"
 
 # =========================================================
 # LOAD MODEL (CACHED)
@@ -389,9 +441,6 @@ def load():
     c = cv2.CascadeClassifier(CASCADE)
     return m, c
 
-# =========================================================
-# LOADING SCREEN
-# =========================================================
 if not st.session_state.model_ready:
     model, cascade = load()
     st.session_state.model_ready = True
@@ -399,14 +448,14 @@ else:
     model, cascade = load()
 
 # =========================================================
-# BANNER IMAGE
+# BANNER
 # =========================================================
 st.markdown('<div class="banner-container">', unsafe_allow_html=True)
-st.image(r"D:\Emotion-Detection\images\20260125_2024_Image Generation_remix_01kftt9pc3fs892v2jnmea8s1c.png", use_column_width=True)
+st.image(BANNER_IMAGE, use_container_width=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
 # =========================================================
-# MAIN HEADER
+# HEADER
 # =========================================================
 st.markdown('''
 <div class="main-header">
@@ -417,7 +466,6 @@ st.markdown('''
 
 st.markdown('<div class="sub-header">Real-Time Facial Emotion Recognition powered by Deep Learning</div>', unsafe_allow_html=True)
 
-# Status Badge
 st.markdown('''
 <div style="text-align: center; margin-bottom: 2rem;">
     <div class="status-badge">✅ MODEL READY</div>
@@ -430,44 +478,24 @@ st.markdown('''
 with st.sidebar:
     st.markdown('<div class="sidebar-section">⚙️ SETTINGS</div>', unsafe_allow_html=True)
     
-    # 3D Confidence Container
-    st.markdown('''
-    <div class="confidence-container">
-        <div class="confidence-header">
-            📊 Confidence Threshold
+    st.markdown(dedent('''
+        <div class="confidence-container">
+            <div class="confidence-header">📊 Confidence Threshold</div>
         </div>
-    </div>
-    ''', unsafe_allow_html=True)
+    '''), unsafe_allow_html=True)
     
-    conf = st.slider("Adjust Confidence Level", 0.0, 1.0, 0.35, 0.05, label_visibility="collapsed")
+    conf = st.slider("Adjust Level", 0.0, 1.0, 0.35, 0.05, label_visibility="collapsed")
     
-    st.markdown('''
-    <div class="confidence-info-box">
-        <p><strong>What is Confidence Threshold?</strong></p>
-        <p>This setting filters emotion predictions based on the model's certainty. Higher values show only confident detections.</p>
-        
-        <div class="confidence-legend">
-            <div class="legend-item">
-                <div class="legend-dot" style="background: #00FF00;"></div>
-                <span><strong>0.7+</strong> → High Accuracy</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-dot" style="background: #FFD700;"></div>
-                <span><strong>0.4-0.6</strong> → Balanced</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-dot" style="background: #FF4444;"></div>
-                <span><strong>0.2-0.3</strong> → More Detections</span>
+    st.markdown(dedent('''
+        <div class="confidence-info-box">
+            <p><strong>What is Confidence Threshold?</strong></p>
+            <p>Filters predictions based on model certainty. Higher = more accurate but fewer detections.</p>
+            <div class="confidence-recommendation">
+                <p><span>✨ Recommended: 0.35 - 0.50</span></p>
             </div>
         </div>
-        
-        <div style="margin-top: 1rem; padding: 0.75rem; background: linear-gradient(135deg, rgba(0,255,136,0.2), rgba(0,204,106,0.2)); border-radius: 0.75rem; text-align: center;">
-            <span style="color: #00CC6A; font-weight: 800;">✨ Recommended: 0.35 - 0.50</span>
-        </div>
-    </div>
-    ''', unsafe_allow_html=True)
+    '''), unsafe_allow_html=True)
     
-    show_c = st.checkbox("Show Confidence %", True)
     show_f = st.checkbox("Show FPS Counter", True)
     
     st.markdown("---")
@@ -484,7 +512,7 @@ with st.sidebar:
             </div>
             ''', unsafe_allow_html=True)
     else:
-        st.info("📭 No detections yet. Start the camera!")
+        st.info("📭 No detections yet")
     
     st.markdown("---")
     if st.button("🗑️ CLEAR HISTORY"):
@@ -498,11 +526,11 @@ with st.sidebar:
 col1, col2 = st.columns([2, 1])
 
 with col1:
-    st.markdown('<div class="section-header">📹 LIVE CAMERA FEED</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">📹 LIVE FEED</div>', unsafe_allow_html=True)
     vid = st.empty()
 
 with col2:
-    st.markdown('<div class="section-header">🎯 DETECTED EMOTION</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">🎯 EMOTION</div>', unsafe_allow_html=True)
     emo_display = st.empty()
     
     if not st.session_state.emotion:
@@ -510,49 +538,35 @@ with col2:
         <div class="emotion-card">
             <div style="font-size: 4rem; opacity: 0.5;">🎭</div>
             <h2 style="color: #667eea; font-weight: 800;">Waiting...</h2>
-            <p style="color: #4a4a6a; font-size: 1rem;">Start camera to detect emotions</p>
+            <p style="color: #4a4a6a;">Start camera to detect</p>
         </div>
         ''', unsafe_allow_html=True)
-    
-    st.markdown("---")
-    st.markdown('<div class="section-header">📊 CONFIDENCE METER</div>', unsafe_allow_html=True)
-    conf_meter = st.empty()
-    
-    conf_percent = int(st.session_state.confidence * 100)
-    conf_color = "#00FF00" if conf_percent >= 70 else ("#FFD700" if conf_percent >= 40 else "#FF4444")
-    
-    conf_meter.markdown(f'''
-    <div class="conf-meter-container">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
-            <span style="color: #667eea; font-weight: 700;">Confidence</span>
-            <span style="color: {conf_color}; font-weight: 900; font-size: 1.2rem;">{conf_percent}%</span>
-        </div>
-        <div style="background: rgba(200,200,220,0.3); border-radius: 1rem; height: 14px; overflow: hidden; box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);">
-            <div style="background: linear-gradient(90deg, {conf_color}, {conf_color}80); height: 100%; width: {conf_percent}%; transition: width 0.5s ease; border-radius: 1rem; box-shadow: 0 0 10px {conf_color};"></div>
-        </div>
-    </div>
-    ''', unsafe_allow_html=True)
 
 st.markdown("---")
 
-# Control Buttons
+# Buttons
 c1, c2, c3 = st.columns([1, 1, 1])
 with c2:
-    btn_col1, btn_col2 = st.columns(2)
-    with btn_col1:
+    b1, b2 = st.columns(2)
+    with b1:
         if st.button("▶️ START", type="primary"):
             st.session_state.running = True
-    with btn_col2:
+    with b2:
         if st.button("⏹️ STOP"):
             st.session_state.running = False
 
 # =========================================================
-# VIDEO PROCESSING (UNCHANGED LOGIC)
+# OPTIMIZED VIDEO PROCESSING
 # =========================================================
 if st.session_state.running:
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    # Initialize camera with MJPEG + DirectShow
+    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    time.sleep(0.5)
+    
+    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    cap.set(cv2.CAP_PROP_FPS, 30)
     cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
     
     fc = 0
@@ -563,11 +577,15 @@ if st.session_state.running:
     fpc = 0
     cfps = 0
     
+    # Process only every 5th frame for emotion (frame skipping)
+    PROCESS_EVERY = 5
+    
     while st.session_state.running:
         ret, f = cap.read()
         if not ret:
             continue
         
+        f = cv2.flip(f, 1)  # Mirror
         fc += 1
         fpc += 1
         
@@ -576,21 +594,24 @@ if st.session_state.running:
             fpc = 0
             ft = time.time()
         
-        if fc % 4 == 0:
-            s = cv2.resize(f, (0, 0), fx=0.4, fy=0.4)
+        # Fast face detection every 3 frames
+        if fc % 3 == 0:
+            s = cv2.resize(f, (320, 240))  # Lower resolution for detection
             g = cv2.cvtColor(s, cv2.COLOR_BGR2GRAY)
-            faces = cascade.detectMultiScale(g, 1.1, 4, minSize=(25, 25))
+            faces = cascade.detectMultiScale(g, 1.15, 3, minSize=(30, 30))
         
+        # Process emotion only every 5th frame
         for (x, y, w, h) in faces:
-            x, y, w, h = int(x / 0.4), int(y / 0.4), int(w / 0.4), int(h / 0.4)
+            x, y, w, h = x*2, y*2, w*2, h*2
             
-            roi = f[y:y + h, x:x + w]
-            gf = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-            gf = cv2.resize(gf, (48, 48))
-            gf = gf.astype("float32") / 255.0
-            gf = np.expand_dims(gf, axis=(0, -1))
-            
-            if fc % 3 == 0:
+            # Only predict on select frames
+            if fc % PROCESS_EVERY == 0:
+                roi = f[y:y+h, x:x+w]
+                gf = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+                gf = cv2.resize(gf, (48, 48))
+                gf = gf.astype("float32") / 255.0
+                gf = np.expand_dims(gf, axis=(0, -1))
+                
                 p = model.predict(gf, verbose=0)[0]
                 c = float(np.max(p))
                 i = int(np.argmax(p))
@@ -608,55 +629,33 @@ if st.session_state.running:
             else:
                 e = le or "..."
             
-            clr = (102, 126, 234)
-            cv2.rectangle(f, (x, y), (x + w, y + h), clr, 3)
-            
-            lbl = e
-            if show_c and e != "Uncertain":
-                lbl += f" {st.session_state.confidence:.0%}"
-            
-            cv2.putText(f, lbl, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, clr, 2)
+            # Draw
+            cv2.rectangle(f, (x, y), (x+w, y+h), (102, 126, 234), 3)
+            cv2.putText(f, e, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (102, 126, 234), 2)
         
         if show_f:
-            cv2.putText(f, f"FPS: {cfps}", (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (102, 126, 234), 2)
+            cv2.putText(f, f"FPS: {cfps}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (102, 126, 234), 2)
         
         vid.image(cv2.cvtColor(f, cv2.COLOR_BGR2RGB), channels="RGB")
         
-        if fc % 6 == 0 and st.session_state.emotion:
+        # Update UI every 15 frames
+        if fc % 15 == 0 and st.session_state.emotion:
             e = st.session_state.emotion
             t = THEMES[e]
             
             emo_display.markdown(f'''
             <div class="emotion-card">
-                <div style="font-size: 4.5rem;">{t['emoji']}</div>
-                <h1 style="color: #667eea; font-weight: 900; font-size: 2rem; margin: 0.75rem 0;">{e.upper()}</h1>
-                <div style="font-size: 2rem; margin: 0.5rem 0;">{t['icon']}</div>
-                <p style="color: #4a4a6a; font-size: 1rem; font-weight: 700;">{t['msg']}</p>
+                <div style="font-size: 5rem;">{t['emoji']}</div>
+                <h1 style="color: #667eea; font-weight: 900; font-size: 2.2rem; margin: 0.75rem 0;">{e.upper()}</h1>
+                <div style="font-size: 2.5rem; margin: 0.5rem 0;">{t['icon']}</div>
+                <p style="color: #4a4a6a; font-size: 1.1rem; font-weight: 700;">{t['msg']}</p>
                 <div style="margin-top: 1rem; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 1rem;">
                     <span style="color: #FFF; font-weight: 800;">Confidence: {st.session_state.confidence:.0%}</span>
-                </div>
-            </div>
-            ''', unsafe_allow_html=True)
-            
-            live_conf = int(st.session_state.confidence * 100)
-            live_color = "#00FF00" if live_conf >= 70 else ("#FFD700" if live_conf >= 40 else "#FF4444")
-            
-            conf_meter.markdown(f'''
-            <div class="conf-meter-container">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
-                    <span style="color: #667eea; font-weight: 700;">Confidence</span>
-                    <span style="color: {live_color}; font-weight: 900; font-size: 1.2rem;">{live_conf}%</span>
-                </div>
-                <div style="background: rgba(200,200,220,0.3); border-radius: 1rem; height: 14px; overflow: hidden; box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);">
-                    <div style="background: linear-gradient(90deg, {live_color}, {live_color}80); height: 100%; width: {live_conf}%; transition: width 0.5s ease; border-radius: 1rem; box-shadow: 0 0 10px {live_color};"></div>
                 </div>
             </div>
             ''', unsafe_allow_html=True)
     
     cap.release()
 
-# =========================================================
-# FOOTER
-# =========================================================
 st.markdown("---")
-st.markdown('<div class="footer">Built with 💜 using TensorFlow & Streamlit</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer"> Built with ❤️ using TensorFlow & Streamlit by Maulya Soni</div>', unsafe_allow_html=True)
