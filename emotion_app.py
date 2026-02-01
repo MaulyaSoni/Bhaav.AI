@@ -429,7 +429,7 @@ THEMES = {
 MODEL = r"D:\Emotion-Detection\saved-models\emotion_model-opt1.h5"
 CASCADE = r"D:\Emotion-Detection\saved-models\haarcascade_frontalface_default.xml"
 LABELS = ["Angry", "Disgust", "Fear", "Happy", "Sad", "Surprise", "Neutral"]
-BANNER_IMAGE = r"D:\Emotion-Detection\images\image.png"
+BANNER_IMAGE = r"D:\Emotion-Detection\images\20260125_2024_Image Generation_remix_01kftt9pc3fs892v2jnmea8s1c.png"
 
 # =========================================================
 # LOAD MODEL (CACHED)
